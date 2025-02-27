@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:footballtraining/firebaseConfig.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // ✅ Ensure FirebaseAuth is imported
 
 import 'loginPage.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding
+      .ensureInitialized(); // ✅ Ensures Flutter bindings are ready
+  await FirebaseConfig.initializeFirebase(); // ✅ Firebase initializes only once
   runApp(const MyApp());
 }
 
@@ -15,14 +20,10 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Flutter Demo',
       theme: ThemeData(
-
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
       home: Loginpage(),
-
     );
   }
 }
-
-
