@@ -19,14 +19,16 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.3'
+          flutter-version: '3.27.1'  # Update to match your local version
+          channel: 'stable'
+          cache: true
 
       - name: Install Dependencies
         run: flutter pub get
 
-      # Optional - You can disable tests for now if you have test issues
-      #- name: Run Flutter Tests
-       # run: flutter test
+      # Optional: Re-enable when you want to add tests
+      # - name: Run Flutter Tests
+      #   run: flutter test
 
       - name: Build IPA
         run: flutter build ios --release --no-codesign
@@ -40,7 +42,7 @@ jobs:
           file: build/ios/ipa/*.ipa
 
       - name: Upload IPA Artifact
-        uses: actions/upload-artifact@v4  # ✅ Use v4 instead of v3
+        uses: actions/upload-artifact@v4
         with:
           name: app-release.ipa
           path: build/ios/ipa/*.ipa
