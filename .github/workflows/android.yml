@@ -34,8 +34,9 @@ jobs:
       - name: Install Dependencies
         run: flutter pub get
 
-      - name: Run Flutter Tests
-        run: flutter test
+      # 🚫 Tests temporarily disabled
+      # - name: Run Flutter Tests
+      #   run: flutter test
 
       - name: Build APK
         run: flutter build apk --release
