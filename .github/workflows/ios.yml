@@ -19,15 +19,30 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.27.1'
+          flutter-version: '3.27.1'  # Adjust if you're using a different version locally
           channel: 'stable'
           cache: true
 
       - name: Install Dependencies
         run: flutter pub get
 
-      - name: Build IPA (no codesign for Firebase)
+      - name: Build iOS App (no codesign)
         run: flutter build ios --release --no-codesign
+
+      - name: Archive with Xcode
+        run: |
+          xcodebuild -workspace ios/Runner.xcworkspace \
+                     -scheme Runner \
+                     -sdk iphoneos \
+                     -configuration Release \
+                     -archivePath build/ios/Runner.xcarchive archive
+
+      - name: Export IPA from Archive
+        run: |
+          xcodebuild -exportArchive \
+                     -archivePath build/ios/Runner.xcarchive \
+                     -exportPath build/ios/ipa \
+                     -exportOptionsPlist ios/exportOptions.plist
 
       - name: Install Firebase CLI
         run: curl -sL https://firebase.tools | bash
@@ -36,16 +51,15 @@ jobs:
         run: |
           echo "${{ secrets.FIREBASE_CREDENTIALS }}" > "${HOME}/firebase-service-account.json"
           firebase appdistribution:distribute \
-            build/ios/ipa/*.ipa \
+            build/ios/ipa/Runner.ipa \
             --app ${{ secrets.FIREBASE_APP_ID_IOS }} \
-            --token "${{ secrets.FIREBASE_TOKEN }}" \
             --groups "testers" \
             --release-notes "Automated release from GitHub Actions"
         env:
           GOOGLE_APPLICATION_CREDENTIALS: "${HOME}/firebase-service-account.json"
 
-      - name: Upload IPA Artifact
+      - name: Upload IPA Artifact to GitHub Actions
         uses: actions/upload-artifact@v4
         with:
           name: app-release.ipa
-          path: build/ios/ipa/*.ipa
+          path: build/ios/ipa/Runner.ipa
