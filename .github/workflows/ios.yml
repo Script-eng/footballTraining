@@ -19,27 +19,30 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.27.1'  # Update to match your local version
+          flutter-version: '3.27.1'
           channel: 'stable'
           cache: true
 
       - name: Install Dependencies
         run: flutter pub get
 
-      # Optional: Re-enable when you want to add tests
-      # - name: Run Flutter Tests
-      #   run: flutter test
-
-      - name: Build IPA
+      - name: Build IPA (no codesign for Firebase)
         run: flutter build ios --release --no-codesign
 
+      - name: Install Firebase CLI
+        run: curl -sL https://firebase.tools | bash
+
       - name: Upload IPA to Firebase App Distribution
-        uses: wzieba/Firebase-Distribution-Github-Action@v1
-        with:
-          appId: ${{ secrets.FIREBASE_APP_ID_IOS }}
-          serviceCredentialsFileContent: ${{ secrets.FIREBASE_CREDENTIALS }}
-          groups: testers
-          file: build/ios/ipa/*.ipa
+        run: |
+          echo "${{ secrets.FIREBASE_CREDENTIALS }}" > "${HOME}/firebase-service-account.json"
+          firebase appdistribution:distribute \
+            build/ios/ipa/*.ipa \
+            --app ${{ secrets.FIREBASE_APP_ID_IOS }} \
+            --token "${{ secrets.FIREBASE_TOKEN }}" \
+            --groups "testers" \
+            --release-notes "Automated release from GitHub Actions"
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: "${HOME}/firebase-service-account.json"
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
