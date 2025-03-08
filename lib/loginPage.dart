@@ -1,6 +1,10 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:footballtraining/views/adminScreen.dart';
+import 'package:footballtraining/views/coachScreen.dart';
+import 'package:footballtraining/views/receptionistScreen.dart';
 
 class Loginpage extends StatefulWidget {
   const Loginpage({super.key});
@@ -20,31 +24,45 @@ class _LoginpageState extends State<Loginpage> {
     });
 
     try {
-      // ✅ Ensure Firebase is initialized
-      FirebaseApp app =
-          Firebase.app('foottraining-4051b'); // ✅ Use the named Firebase app
-      FirebaseAuth auth =
-          FirebaseAuth.instanceFor(app: app); // ✅ Explicitly use this app
-
+      FirebaseAuth auth = FirebaseAuth.instance;
       UserCredential userCredential = await auth.signInWithEmailAndPassword(
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
       );
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Login Successful!")),
-      );
-    } on FirebaseAuthException catch (e) {
-      String message = "Login failed";
-      if (e.code == 'user-not-found') {
-        message = "No user found for this email.";
-      } else if (e.code == 'wrong-password') {
-        message = "Incorrect password.";
-      } else if (e.code == 'app-not-initialized') {
-        message = "Firebase is not initialized.";
+      User? user = userCredential.user;
+
+      if (user != null) {
+        // Fetch role from Firestore
+        DocumentSnapshot userDoc =
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        String role = userDoc['role'] ?? '';
+
+        // Navigate to the correct screen based on role
+        if (role == 'admin') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const AdminScreen()),
+          );
+        } else if (role == 'receptionist') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const ReceptionistScreen()),
+          );
+        } else if (role == 'coach') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const CoachScreen()),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Unauthorized role: $role")),
+          );
+        }
       }
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
+        SnackBar(content: Text("Login failed: $e")),
       );
     } finally {
       setState(() {
@@ -52,6 +70,46 @@ class _LoginpageState extends State<Loginpage> {
       });
     }
   }
+
+
+  // Future<void> loginUser() async {
+  //   setState(() {
+  //     isLoading = true;
+  //   });
+  //
+  //   try {
+  //     // ✅ Ensure Firebase is initialized
+  //     FirebaseApp app =
+  //         Firebase.app('foottraining-4051b'); // ✅ Use the named Firebase app
+  //     FirebaseAuth auth =
+  //         FirebaseAuth.instanceFor(app: app); // ✅ Explicitly use this app
+  //
+  //     UserCredential userCredential = await auth.signInWithEmailAndPassword(
+  //       email: emailController.text.trim(),
+  //       password: passwordController.text.trim(),
+  //     );
+  //
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       const SnackBar(content: Text("Login Successful!")),
+  //     );
+  //   } on FirebaseAuthException catch (e) {
+  //     String message = "Login failed";
+  //     if (e.code == 'user-not-found') {
+  //       message = "No user found for this email.";
+  //     } else if (e.code == 'wrong-password') {
+  //       message = "Incorrect password.";
+  //     } else if (e.code == 'app-not-initialized') {
+  //       message = "Firebase is not initialized.";
+  //     }
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       SnackBar(content: Text(message)),
+  //     );
+  //   } finally {
+  //     setState(() {
+  //       isLoading = false;
+  //     });
+  //   }
+  // }
 
   @override
   Widget build(BuildContext context) {
