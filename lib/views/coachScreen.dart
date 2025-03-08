@@ -10,10 +10,9 @@ class CoachScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading:
-            IconButton(icon: const Icon(Icons.logout), onPressed: () => null
-                // _logout(context), // Call the logout function
-                ),
+        leading: IconButton(icon: const Icon(Icons.logout), onPressed: () {}
+            // _logout(context), // Call the logout function
+            ),
         title: const Text("Coach Screen"),
       ),
       body: const Center(

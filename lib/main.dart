@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:footballtraining/firebaseConfig.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // ✅ Ensure FirebaseAuth is imported
+// ✅ Ensure FirebaseAuth is imported
 
 import 'loginPage.dart';
 
