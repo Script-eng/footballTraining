@@ -10,9 +10,66 @@ void main() async {
       .ensureInitialized(); // ✅ Ensures Flutter bindings are ready
   await FirebaseConfig.initializeFirebase(); // ✅ Firebase initializes only once
 // ✅ Run this once, then comment it out to prevent duplicate entries
+
   //await addSamplePlayers();
+  //await _addSampleTrainingSession();
+
   runApp(const MyApp());
 }
+
+// ***********************************************************//
+// Future<void> _addSampleTrainingSession() async {
+//   FirebaseFirestore _firestore = FirebaseFirestore.instance;
+//
+//   // Sample session data
+//   List<Map<String, dynamic>> playerData = [
+//     {
+//       'player_id': 'player_1_id',
+//       'attendance': true,
+//       'goals': 2,
+//       'assists': 1,
+//       'notes': 'Excellent performance, good passing.'
+//     },
+//     {
+//       'player_id': 'player_2_id',
+//       'attendance': false,
+//       'goals': 0,
+//       'assists': 0,
+//       'notes': 'Was absent, no performance data.'
+//     },
+//   ];
+//
+//   // Create the training session document
+//   try {
+//     await _firestore.collection('training_sessions').add({
+//       'session_date': Timestamp.now(),  // Current date and time
+//       'player_data': playerData,  // Player data for the session
+//     });
+//     print('Sample session added successfully');
+//   } catch (e) {
+//     print('Error adding sample session: $e');
+//   }
+// }
+
+// class MyApp extends StatelessWidget {
+//   @override
+//   Widget build(BuildContext context) {
+//     return MaterialApp(
+//       title: 'Football Training',
+//       theme: ThemeData(
+//         primarySwatch: Colors.blue,
+//       ),
+//       home: Scaffold(
+//         appBar: AppBar(
+//           title: Text("Football Training App"),
+//         ),
+//         body: Center(
+//           child: Text('Welcome to the Training App'),
+//         ),
+//       ),
+//     );
+//   }
+// }
 
 // ***********************************************************//
 // ✅ Function to add sample players to Firestore
