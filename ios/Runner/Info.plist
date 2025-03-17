@@ -52,5 +52,9 @@
         <key>NSAllowsLocalNetworking</key>
         <true/>
     </dict>
+	<key>NSCameraUsageDescription</key>
+	<string>App needs access to camera</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>App needs access to photos</string>
 </dict>
 </plist>

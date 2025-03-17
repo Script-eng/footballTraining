@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:footballtraining/views/adminScreen.dart';
 import 'package:footballtraining/views/coachScreen.dart';
 import 'package:footballtraining/views/receptionistScreen.dart';
@@ -34,8 +33,10 @@ class _LoginpageState extends State<Loginpage> {
 
       if (user != null) {
         // Fetch role from Firestore
-        DocumentSnapshot userDoc =
-        await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        DocumentSnapshot userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
         String role = userDoc['role'] ?? '';
 
         // Navigate to the correct screen based on role
@@ -70,7 +71,6 @@ class _LoginpageState extends State<Loginpage> {
       });
     }
   }
-
 
   // Future<void> loginUser() async {
   //   setState(() {
