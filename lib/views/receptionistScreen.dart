@@ -20,16 +20,16 @@ class _ReceptionistScreenState extends State<ReceptionistScreen> {
 
   // Function to get stream based on tab selection
   Stream<QuerySnapshot> getStreamForCurrentTab() {
-    String role = currentTab == 0
-        ? "coach"
-        : currentTab == 1
-            ? "player"
-            : "team";
-
-    return FirebaseFirestore.instance
-        .collection('users')
-        .where('role', isEqualTo: role)
-        .snapshots();
+    if (currentTab == 0) {
+      return FirebaseFirestore.instance
+          .collection('users')
+          .where('role', isEqualTo: 'coach')
+          .snapshots();
+    } else if (currentTab == 1) {
+      return FirebaseFirestore.instance.collection('players').snapshots();
+    } else {
+      return FirebaseFirestore.instance.collection('teams').snapshots();
+    }
   }
 
   @override
@@ -121,17 +121,61 @@ class _ReceptionistScreenState extends State<ReceptionistScreen> {
                   return Center(child: Text("No ${tabs[currentTab]} found"));
                 }
 
-                var users = snapshot.data!.docs.where((doc) {
-                  return doc['name']
-                      .toString()
-                      .toLowerCase()
-                      .contains(searchQuery.toLowerCase());
+                // ✅ Handle Different Collections
+                List<DocumentSnapshot> items = snapshot.data!.docs.where((doc) {
+                  if (currentTab == 0) {
+                    // Coaches
+                    return doc['name']
+                        .toString()
+                        .toLowerCase()
+                        .contains(searchQuery.toLowerCase());
+                  } else if (currentTab == 1) {
+                    var data = doc.data() as Map<String, dynamic>?;
+
+                    if (data == null) return false;
+
+                    // Get the player’s name
+                    String playerName =
+                        data['name']?.toString().toLowerCase() ?? '';
+
+                    // Show players whose names contain the search query (or show all if search is empty)
+                    return playerName.contains(searchQuery.toLowerCase());
+                  } else {
+                    // Teams
+                    return doc['team_name']
+                        .toString()
+                        .toLowerCase()
+                        .contains(searchQuery.toLowerCase());
+                  }
                 }).toList();
 
                 return ListView.builder(
-                  itemCount: users.length,
+                  itemCount: items.length,
                   itemBuilder: (context, index) {
-                    var user = users[index];
+                    var item = items[index];
+
+                    // ✅ Different Fields for Coaches/Players vs. Teams
+                    String title;
+                    String subtitle;
+
+                    if (currentTab == 0) {
+                      // Coaches
+                      title = item['name'];
+                      subtitle = item['role_description'] ?? "";
+                    } else if (currentTab == 1) {
+                      // Players
+                      title = item['name'];
+                      // You can display position or something else here
+                      subtitle = "Position: ${item['position'] ?? ''}";
+                    } else {
+                      // Teams
+                      title = item['team_name'];
+                      subtitle = "Players: ${item['number_of_players'] ?? 0}";
+                    }
+
+                    // Safe retrieval for picture field
+                    final data = item.data() as Map<String, dynamic>;
+                    final String pictureUrl = data['picture']?.toString() ?? '';
 
                     return Card(
                       margin: const EdgeInsets.symmetric(
@@ -140,29 +184,28 @@ class _ReceptionistScreenState extends State<ReceptionistScreen> {
                           borderRadius: BorderRadius.circular(12)),
                       child: ListTile(
                         leading: CircleAvatar(
-                          backgroundImage: user['picture'] != null &&
-                                  user['picture'].isNotEmpty
-                              ? NetworkImage(user['picture'])
-                              : AssetImage("assets/default_profile.png")
-                                  as ImageProvider,
+                          backgroundImage: pictureUrl.isEmpty
+                              ? const AssetImage(
+                                  "assets/images/default_profile.jpeg")
+                              : NetworkImage(pictureUrl),
                           radius: 25,
                         ),
-                        title: Text(user['name'],
+                        title: Text(title,
                             style: GoogleFonts.ubuntu(
                                 fontWeight: FontWeight.bold, fontSize: 16)),
-                        subtitle: Text(user['role_description'] ?? "",
+                        subtitle: Text(subtitle,
                             style: GoogleFonts.ubuntu(
                                 color: Colors.grey, fontSize: 13)),
                         trailing: PopupMenuButton<String>(
                           onSelected: (value) {
-                            if (value == "delete") {
-                              FirebaseFirestore.instance
-                                  .collection('users')
-                                  .doc(user.id)
-                                  .delete();
+                            if (value == "edit") {
+                              _editUser(item); // Call edit function
+                            } else if (value == "delete") {
+                              _deleteUser(item);
                             }
                           },
                           itemBuilder: (BuildContext context) => [
+                            PopupMenuItem(value: "edit", child: Text("Edit")),
                             PopupMenuItem(
                                 value: "delete",
                                 child: Text("Delete",
@@ -211,6 +254,186 @@ class _ReceptionistScreenState extends State<ReceptionistScreen> {
     );
   }
 
+//***********************************************************************************************************************************************************/
+  void _editUser(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+
+    final nameController = TextEditingController(text: data['name']);
+    final emailController = TextEditingController(text: data['email'] ?? "");
+    final descriptionController =
+        TextEditingController(text: data['role_description'] ?? "");
+    final positionController =
+        TextEditingController(text: data['position'] ?? "");
+
+    String selectedTeam = data['team'] ?? "";
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        title: Text("Edit ${data['name']}"),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: InputDecoration(labelText: "Name"),
+              ),
+              if (currentTab == 0) ...[
+                // Coach-specific
+                TextField(
+                  controller: emailController,
+                  decoration: InputDecoration(labelText: "Email"),
+                ),
+                TextField(
+                  controller: descriptionController,
+                  decoration: InputDecoration(labelText: "Role Description"),
+                ),
+              ],
+              if (currentTab == 1) ...[
+                // Player-specific
+                TextField(
+                  controller: positionController,
+                  decoration: InputDecoration(labelText: "Position"),
+                ),
+              ],
+              if (currentTab != 2)
+                StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('teams')
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) return CircularProgressIndicator();
+
+                    List<DropdownMenuItem<String>> teamItems = snapshot
+                        .data!.docs
+                        .map<DropdownMenuItem<String>>((doc) {
+                      final String tName =
+                          doc['team_name'] as String; // 👈 explicitly cast here
+                      return DropdownMenuItem<String>(
+                        value: tName,
+                        child: Text(tName),
+                      );
+                    }).toList();
+                    return DropdownButtonFormField<String>(
+                      value: selectedTeam.isNotEmpty ? selectedTeam : null,
+                      items: teamItems,
+                      onChanged: (val) => selectedTeam = val!,
+                      decoration: InputDecoration(labelText: "Team"),
+                    );
+                  },
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            child: Text("Cancel"),
+            onPressed: () => Navigator.pop(context),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Color(0xFFF27121)),
+            child: Text("Save"),
+            onPressed: () async {
+              try {
+                if (currentTab == 0) {
+                  // Coach
+                  await FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(doc.id)
+                      .update({
+                    'name': nameController.text,
+                    'email': emailController.text,
+                    'role_description': descriptionController.text,
+                    'team': selectedTeam,
+                  });
+                } else if (currentTab == 1) {
+                  // Player
+                  await FirebaseFirestore.instance
+                      .collection('players')
+                      .doc(doc.id)
+                      .update({
+                    'name': nameController.text,
+                    'position': positionController.text,
+                    'team': selectedTeam,
+                  });
+                } else if (currentTab == 2) {
+                  // Team
+                  await FirebaseFirestore.instance
+                      .collection('teams')
+                      .doc(doc.id)
+                      .update({
+                    'team_name': nameController.text,
+                  });
+                }
+
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text("Successfully updated.")),
+                );
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text("Failed to update: $e")),
+                );
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+//***********************************************************************************************************************************************************/
+  void _deleteUser(DocumentSnapshot doc) async {
+    try {
+      String collection;
+
+      if (currentTab == 0) {
+        collection = 'users'; // Coach
+      } else if (currentTab == 1) {
+        collection = 'players'; // Player
+
+        // 🔽 Decrement the number_of_players in the assigned team
+        String teamName = doc['team'];
+        final teamSnapshot = await FirebaseFirestore.instance
+            .collection('teams')
+            .where('team_name', isEqualTo: teamName)
+            .limit(1)
+            .get();
+
+        if (teamSnapshot.docs.isNotEmpty) {
+          final teamDoc = teamSnapshot.docs.first;
+          final teamRef =
+              FirebaseFirestore.instance.collection('teams').doc(teamDoc.id);
+
+          await FirebaseFirestore.instance.runTransaction((transaction) async {
+            final snapshot = await transaction.get(teamRef);
+            final currentCount = snapshot['number_of_players'] ?? 0;
+            transaction.update(teamRef,
+                {'number_of_players': (currentCount - 1).clamp(0, 999)});
+          });
+        }
+      } else {
+        collection = 'teams'; // Team
+      }
+
+      await FirebaseFirestore.instance
+          .collection(collection)
+          .doc(doc.id)
+          .delete();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Deleted successfully.")),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to delete: $e")),
+      );
+    }
+  }
+
+//***********************************************************************************************************************************************************/
   // 🔹 Logout function
   void _logout(BuildContext context) async {
     try {
@@ -227,3 +450,4 @@ class _ReceptionistScreenState extends State<ReceptionistScreen> {
     }
   }
 }
+//***********************************************************************************************************************************************************/

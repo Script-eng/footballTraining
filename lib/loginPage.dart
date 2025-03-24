@@ -32,14 +32,27 @@ class _LoginpageState extends State<Loginpage> {
       User? user = userCredential.user;
 
       if (user != null) {
-        // Fetch role from Firestore
-        DocumentSnapshot userDoc = await FirebaseFirestore.instance
+        // 🔹 Query Firestore for user document using email instead of UID
+        QuerySnapshot userQuery = await FirebaseFirestore.instance
             .collection('users')
-            .doc(user.uid)
+            .where('email', isEqualTo: user.email)
+            .limit(1)
             .get();
-        String role = userDoc['role'] ?? '';
 
-        // Navigate to the correct screen based on role
+        if (userQuery.docs.isEmpty) {
+          throw Exception("User not found in Firestore.");
+        }
+
+        DocumentSnapshot userDoc = userQuery.docs.first;
+
+        // 🔹 Check if "role" field exists
+        if (!userDoc.data().toString().contains("role")) {
+          throw Exception("Role field missing in Firestore.");
+        }
+
+        String role = userDoc['role'];
+
+        // 🔹 Navigate to the correct screen based on role
         if (role == 'admin') {
           Navigator.pushReplacement(
             context,
@@ -71,7 +84,6 @@ class _LoginpageState extends State<Loginpage> {
       });
     }
   }
-
   // Future<void> loginUser() async {
   //   setState(() {
   //     isLoading = true;
