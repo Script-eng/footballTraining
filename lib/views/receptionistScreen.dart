@@ -258,27 +258,33 @@ class _ReceptionistScreenState extends State<ReceptionistScreen> {
   void _editUser(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
 
-    final nameController = TextEditingController(text: data['name']);
+    final nameController =
+        TextEditingController(text: data['name'] ?? data['team_name']);
     final emailController = TextEditingController(text: data['email'] ?? "");
-    final descriptionController =
-        TextEditingController(text: data['role_description'] ?? "");
+    final descriptionController = TextEditingController(
+      text: data['role_description'] ?? data['team_desciption'] ?? "",
+    );
     final positionController =
         TextEditingController(text: data['position'] ?? "");
 
     String selectedTeam = data['team'] ?? "";
+    String selectedCoach = data['coach'] ?? "";
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        title: Text("Edit ${data['name']}"),
+        title: Text("Edit ${data['name'] ?? data['team_name'] ?? ''}"),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // 👤 Name or Team Name
               TextField(
                 controller: nameController,
-                decoration: InputDecoration(labelText: "Name"),
+                decoration: InputDecoration(
+                  labelText: currentTab == 2 ? "Team Name" : "Name",
+                ),
               ),
               if (currentTab == 0) ...[
                 // Coach-specific
@@ -309,8 +315,7 @@ class _ReceptionistScreenState extends State<ReceptionistScreen> {
                     List<DropdownMenuItem<String>> teamItems = snapshot
                         .data!.docs
                         .map<DropdownMenuItem<String>>((doc) {
-                      final String tName =
-                          doc['team_name'] as String; // 👈 explicitly cast here
+                      final String tName = doc['team_name'];
                       return DropdownMenuItem<String>(
                         value: tName,
                         child: Text(tName),
@@ -321,6 +326,32 @@ class _ReceptionistScreenState extends State<ReceptionistScreen> {
                       items: teamItems,
                       onChanged: (val) => selectedTeam = val!,
                       decoration: InputDecoration(labelText: "Team"),
+                    );
+                  },
+                ),
+              if (currentTab == 2)
+                StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('users')
+                      .where('role', isEqualTo: 'coach')
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) return CircularProgressIndicator();
+
+                    final coachItems = snapshot.data!.docs.map((doc) {
+                      final coachName = doc['name'];
+                      final coachId = doc.id;
+                      return DropdownMenuItem<String>(
+                        value: coachId,
+                        child: Text(coachName),
+                      );
+                    }).toList();
+
+                    return DropdownButtonFormField<String>(
+                      value: selectedCoach.isNotEmpty ? selectedCoach : null,
+                      items: coachItems,
+                      onChanged: (value) => selectedCoach = value!,
+                      decoration: InputDecoration(labelText: "Assign Coach"),
                     );
                   },
                 ),
@@ -365,6 +396,8 @@ class _ReceptionistScreenState extends State<ReceptionistScreen> {
                       .doc(doc.id)
                       .update({
                     'team_name': nameController.text,
+                    'team_desciption': descriptionController.text,
+                    'coach': selectedCoach,
                   });
                 }
 

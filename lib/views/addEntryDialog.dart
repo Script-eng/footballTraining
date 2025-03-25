@@ -39,6 +39,7 @@ class _AddEntryDialogState extends State<AddEntryDialog> {
   // --- TEAM fields ---
   String teamName = "";
   String teamDesciption = "";
+  String? selectedCoachForTeam;
   // Removed numberOfPlayers field since this is managed automatically
 
   // --------------------------------------------
@@ -116,18 +117,17 @@ class _AddEntryDialogState extends State<AddEntryDialog> {
     }
 
     try {
-      // Create user in Firebase Auth
+      // ✅ Step 1: Create coach in Firebase Auth
       UserCredential userCredential =
           await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
 
-      // Save coach details in Firestore (users collection)
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userCredential.user!.uid)
-          .set({
+      final String coachUID = userCredential.user!.uid;
+
+      // ✅ Step 2: Save coach details in `users` collection
+      await FirebaseFirestore.instance.collection('users').doc(coachUID).set({
         "name": name,
         "email": email,
         "role": "coach",
@@ -135,6 +135,25 @@ class _AddEntryDialogState extends State<AddEntryDialog> {
         "team": selectedTeamForCoach ?? "Unassigned",
         "picture": _uploadedImageUrl ?? "https://example.com/default.jpg",
       });
+
+      // ✅ Step 3: Update the selected team with coach UID
+      if (selectedTeamForCoach != null) {
+        final teamSnapshot = await FirebaseFirestore.instance
+            .collection('teams')
+            .where('team_name', isEqualTo: selectedTeamForCoach)
+            .limit(1)
+            .get();
+
+        if (teamSnapshot.docs.isNotEmpty) {
+          final teamDocId = teamSnapshot.docs.first.id;
+          await FirebaseFirestore.instance
+              .collection('teams')
+              .doc(teamDocId)
+              .update({
+            'coach': coachUID,
+          });
+        }
+      }
 
       Navigator.pop(context);
     } catch (e) {
@@ -209,8 +228,8 @@ class _AddEntryDialogState extends State<AddEntryDialog> {
       await FirebaseFirestore.instance.collection('teams').add({
         "team_name": teamName,
         "team_desciption": teamDesciption,
-
-        "number_of_players": 0, // Start with zero players; auto-managed later.
+        "number_of_players": 0,
+        "coach": selectedCoachForTeam ?? "", // Coach UID
       });
 
       Navigator.pop(context);
@@ -421,8 +440,38 @@ class _AddEntryDialogState extends State<AddEntryDialog> {
       ),
       TextFormField(
         decoration: InputDecoration(labelText: "Team Description"),
-        validator: (value) => value!.isEmpty ? "Enter team Description" : null,
+        validator: (value) => value!.isEmpty ? "Enter team description" : null,
         onSaved: (value) => teamDesciption = value!.trim(),
+      ),
+      const SizedBox(height: 10),
+
+      // Coach Dropdown
+      StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('users')
+            .where('role', isEqualTo: 'coach')
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) return CircularProgressIndicator();
+
+          List<DropdownMenuItem<String>> coachItems =
+              snapshot.data!.docs.map<DropdownMenuItem<String>>((doc) {
+            final coachName = doc['name'];
+            final coachId = doc.id;
+            return DropdownMenuItem<String>(
+              value: coachId,
+              child: Text(coachName),
+            );
+          }).toList();
+
+          return DropdownButtonFormField<String>(
+            decoration: InputDecoration(labelText: "Assign Coach"),
+            items: coachItems,
+            onChanged: (value) {
+              selectedCoachForTeam = value;
+            },
+          );
+        },
       ),
     ];
   }
